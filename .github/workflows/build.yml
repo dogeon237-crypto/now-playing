@@ -94,6 +94,9 @@ jobs:
               buildFeatures {
                   compose = true
               }
+              packaging {
+                  resources.excludes += "META-INF/*.md"
+              }
           }
 
           dependencies {
