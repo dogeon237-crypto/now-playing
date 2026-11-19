@@ -112,7 +112,7 @@ jobs:
               implementation("androidx.compose.material3:material3")
               implementation("androidx.palette:palette-ktx:1.0.0")
               implementation("com.atilika.kuromoji:kuromoji-ipadic:0.9.0")
-              implementation("com.worksap.nlp:sudachi:0.8.1")
+              implementation("com.worksap.nlp:sudachi:0.7.5")
           }
           EOF_FILE
           cat > app/src/main/AndroidManifest.xml <<'EOF_FILE'
