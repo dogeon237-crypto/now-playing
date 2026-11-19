@@ -74,8 +74,8 @@ jobs:
                   applicationId = "com.example.nowplaying"
                   minSdk = 26
                   targetSdk = 35
-                  versionCode = 9
-                  versionName = "1.8"
+                  versionCode = 10
+                  versionName = "1.9"
               }
 
               signingConfigs {
@@ -1046,6 +1046,7 @@ jobs:
           import androidx.compose.ui.text.font.FontWeight
           import androidx.compose.ui.text.style.TextAlign
           import androidx.compose.ui.text.style.TextOverflow
+          import androidx.compose.ui.unit.TextUnit
           import androidx.compose.ui.unit.dp
           import androidx.compose.ui.unit.sp
           import androidx.core.view.WindowCompat
@@ -1169,11 +1170,7 @@ jobs:
                       Modifier.fillMaxSize().padding(24.dp),
                       horizontalAlignment = Alignment.CenterHorizontally,
                   ) {
-                      Text(
-                          "${track.artist} - ${track.title}",
-                          color = Color.White, fontSize = 30.sp, fontWeight = FontWeight.Bold,
-                          maxLines = 1, overflow = TextOverflow.Ellipsis,
-                      )
+                      FitText("${track.artist} - ${track.title}", 30.sp, Color.White, FontWeight.Bold)
                       Spacer(Modifier.height(16.dp))
 
                       Row(Modifier.fillMaxWidth().weight(1f), verticalAlignment = Alignment.CenterVertically) {
@@ -1250,7 +1247,6 @@ jobs:
 
               val lines = lyrics
               val hasPron = lines?.any { it.pron != null } == true
-              val lineHeight = if (hasPron) 100.dp else 72.dp
 
               BoxWithConstraints(
                   Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.25f))
@@ -1262,6 +1258,9 @@ jobs:
                       },
                   contentAlignment = Alignment.Center,
               ) {
+                  val scale = minOf(maxWidth / 640.dp, maxHeight / 420.dp).coerceIn(0.55f, 1f)
+                  val lineHeight = (if (hasPron) 100.dp else 72.dp) * scale
+
                   var visible = (maxHeight / lineHeight).toInt().coerceIn(1, 5)
                   if (visible % 2 == 0) visible -= 1
                   val half = visible / 2
@@ -1274,14 +1273,14 @@ jobs:
                   if (lines == null) {
                       Column(horizontalAlignment = Alignment.CenterHorizontally) {
                           Text(
-                              track.artist, color = Color.White, fontSize = 28.sp, fontWeight = FontWeight.SemiBold,
+                              track.artist, color = Color.White, fontSize = (28 * scale).sp, fontWeight = FontWeight.SemiBold,
                               textAlign = TextAlign.Center, modifier = Modifier.padding(horizontal = 16.dp),
                           )
                           Box(Modifier.height(lineHeight), contentAlignment = Alignment.Center) {
-                              if (loading) Text("가사 찾는 중…", color = Color.White.copy(alpha = 0.6f), fontSize = 18.sp)
+                              if (loading) Text("가사 찾는 중…", color = Color.White.copy(alpha = 0.6f), fontSize = (18 * scale).sp)
                           }
                           Text(
-                              track.title, color = Color.White, fontSize = 28.sp, fontWeight = FontWeight.SemiBold,
+                              track.title, color = Color.White, fontSize = (28 * scale).sp, fontWeight = FontWeight.SemiBold,
                               textAlign = TextAlign.Center, modifier = Modifier.padding(horizontal = 16.dp),
                           )
                       }
@@ -1301,24 +1300,19 @@ jobs:
                                   verticalArrangement = Arrangement.Center,
                                   horizontalAlignment = Alignment.CenterHorizontally,
                               ) {
-                                  Text(
+                                  FitText(
                                       line?.text.orEmpty(),
-                                      color = Color.White.copy(alpha = alpha),
-                                      fontSize = if (isCurrent) 32.sp else 26.sp,
-                                      fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Normal,
-                                      textAlign = TextAlign.Center,
-                                      maxLines = 1,
-                                      overflow = TextOverflow.Ellipsis,
+                                      ((if (isCurrent) 32 else 26) * scale).sp,
+                                      Color.White.copy(alpha = alpha),
+                                      if (isCurrent) FontWeight.Bold else FontWeight.Normal,
                                   )
                                   val pron = line?.pron
                                   if (!pron.isNullOrEmpty()) {
-                                      Text(
+                                      FitText(
                                           pron,
-                                          color = Color.White.copy(alpha = alpha * 0.85f),
-                                          fontSize = if (isCurrent) 20.sp else 17.sp,
-                                          textAlign = TextAlign.Center,
-                                          maxLines = 1,
-                                          overflow = TextOverflow.Ellipsis,
+                                          ((if (isCurrent) 20 else 17) * scale).sp,
+                                          Color.White.copy(alpha = alpha * 0.85f),
+                                          FontWeight.Normal,
                                       )
                                   }
                               }
@@ -1342,6 +1336,24 @@ jobs:
                       )
                   }
               }
+          }
+
+          @Composable
+          fun FitText(text: String, maxSize: TextUnit, color: Color, weight: FontWeight) {
+              var size by remember(text, maxSize) { mutableStateOf(maxSize) }
+              Text(
+                  text,
+                  color = color,
+                  fontSize = size,
+                  fontWeight = weight,
+                  textAlign = TextAlign.Center,
+                  maxLines = 1,
+                  softWrap = false,
+                  overflow = TextOverflow.Clip,
+                  onTextLayout = { r ->
+                      if (r.didOverflowWidth && size.value > 9f) size = (size.value * 0.9f).sp
+                  },
+              )
           }
           EOF_FILE
 
