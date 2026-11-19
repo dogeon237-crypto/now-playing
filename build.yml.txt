@@ -1,0 +1,855 @@
+name: Build APK
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.11.1"
+
+      - name: Create project
+        run: |
+          mkdir -p app/src/main/java/com/example/nowplaying
+          echo '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' | base64 -d > app/debug.keystore
+          cat > settings.gradle.kts <<'EOF_FILE'
+          pluginManagement {
+              repositories {
+                  google()
+                  mavenCentral()
+                  gradlePluginPortal()
+              }
+          }
+          dependencyResolutionManagement {
+              repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+              repositories {
+                  google()
+                  mavenCentral()
+              }
+          }
+          rootProject.name = "NowPlaying"
+          include(":app")
+          EOF_FILE
+          cat > build.gradle.kts <<'EOF_FILE'
+          plugins {
+              id("com.android.application") version "8.7.3" apply false
+              id("org.jetbrains.kotlin.android") version "2.1.0" apply false
+              id("org.jetbrains.kotlin.plugin.compose") version "2.1.0" apply false
+          }
+          EOF_FILE
+          cat > gradle.properties <<'EOF_FILE'
+          org.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8
+          android.useAndroidX=true
+          kotlin.code.style=official
+          android.nonTransitiveRClass=true
+          EOF_FILE
+          cat > app/build.gradle.kts <<'EOF_FILE'
+          plugins {
+              id("com.android.application")
+              id("org.jetbrains.kotlin.android")
+              id("org.jetbrains.kotlin.plugin.compose")
+          }
+
+          android {
+              namespace = "com.example.nowplaying"
+              compileSdk = 35
+
+              defaultConfig {
+                  applicationId = "com.example.nowplaying"
+                  minSdk = 26
+                  targetSdk = 35
+                  versionCode = 5
+                  versionName = "1.4"
+              }
+
+              signingConfigs {
+                  getByName("debug") {
+                      storeFile = file("debug.keystore")
+                      storePassword = "android"
+                      keyAlias = "androiddebugkey"
+                      keyPassword = "android"
+                  }
+              }
+
+              compileOptions {
+                  sourceCompatibility = JavaVersion.VERSION_17
+                  targetCompatibility = JavaVersion.VERSION_17
+              }
+              kotlinOptions {
+                  jvmTarget = "17"
+              }
+              buildFeatures {
+                  compose = true
+              }
+              packaging {
+                  resources.excludes += "META-INF/*.md"
+              }
+          }
+
+          dependencies {
+              val composeBom = platform("androidx.compose:compose-bom:2024.12.01")
+              implementation(composeBom)
+              implementation("androidx.core:core-ktx:1.15.0")
+              implementation("androidx.activity:activity-compose:1.9.3")
+              implementation("androidx.compose.ui:ui")
+              implementation("androidx.compose.foundation:foundation")
+              implementation("androidx.compose.material3:material3")
+              implementation("androidx.palette:palette-ktx:1.0.0")
+              implementation("com.atilika.kuromoji:kuromoji-ipadic:0.9.0")
+          }
+          EOF_FILE
+          cat > app/src/main/AndroidManifest.xml <<'EOF_FILE'
+          <?xml version="1.0" encoding="utf-8"?>
+          <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+              <uses-permission android:name="android.permission.INTERNET" />
+
+              <application
+                  android:allowBackup="true"
+                  android:label="Now Playing"
+                  android:theme="@android:style/Theme.Material.NoActionBar">
+
+                  <activity
+                      android:name=".MainActivity"
+                      android:exported="true"
+                      android:screenOrientation="landscape">
+                      <intent-filter>
+                          <action android:name="android.intent.action.MAIN" />
+                          <category android:name="android.intent.category.LAUNCHER" />
+                      </intent-filter>
+                  </activity>
+
+                  <service
+                      android:name=".MediaListener"
+                      android:exported="true"
+                      android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
+                      <intent-filter>
+                          <action android:name="android.service.notification.NotificationListenerService" />
+                      </intent-filter>
+                  </service>
+
+              </application>
+          </manifest>
+          EOF_FILE
+          cat > app/src/main/java/com/example/nowplaying/MediaListener.kt <<'EOF_FILE'
+          package com.example.nowplaying
+
+          import android.service.notification.NotificationListenerService
+
+          class MediaListener : NotificationListenerService()
+          EOF_FILE
+          cat > app/src/main/java/com/example/nowplaying/NowPlayingTracker.kt <<'EOF_FILE'
+          package com.example.nowplaying
+
+          import android.content.ComponentName
+          import android.content.Context
+          import android.graphics.Bitmap
+          import android.media.MediaMetadata
+          import android.media.session.MediaController
+          import android.media.session.MediaSessionManager
+          import android.media.session.PlaybackState
+          import android.os.Handler
+          import android.os.Looper
+          import android.os.SystemClock
+          import androidx.core.app.NotificationManagerCompat
+          import kotlinx.coroutines.flow.MutableStateFlow
+          import kotlinx.coroutines.flow.StateFlow
+
+          data class Track(
+              val title: String,
+              val artist: String,
+              val art: Bitmap?,
+              val isPlaying: Boolean,
+              val packageName: String,
+              val durationMs: Long,
+              val artUri: String?,
+          )
+
+          class NowPlayingTracker(private val context: Context) {
+
+              private val msm = context.getSystemService(MediaSessionManager::class.java)
+              private val component = ComponentName(context, MediaListener::class.java)
+              private val handler = Handler(Looper.getMainLooper())
+
+              private val _track = MutableStateFlow<Track?>(null)
+              val track: StateFlow<Track?> = _track
+
+              private var current: MediaController? = null
+
+              private val callback = object : MediaController.Callback() {
+                  override fun onMetadataChanged(metadata: MediaMetadata?) = update()
+                  override fun onPlaybackStateChanged(state: PlaybackState?) = update()
+                  override fun onSessionDestroyed() = refresh()
+              }
+
+              private val sessionsListener =
+                  MediaSessionManager.OnActiveSessionsChangedListener { list -> pick(list.orEmpty()) }
+
+              fun start() {
+                  if (!hasPermission(context)) return
+                  try {
+                      msm.addOnActiveSessionsChangedListener(sessionsListener, component, handler)
+                      refresh()
+                  } catch (e: SecurityException) {
+                  }
+              }
+
+              fun stop() {
+                  msm.removeOnActiveSessionsChangedListener(sessionsListener)
+                  current?.unregisterCallback(callback)
+                  current = null
+              }
+
+              private fun refresh() {
+                  try {
+                      pick(msm.getActiveSessions(component))
+                  } catch (e: SecurityException) {
+                      _track.value = null
+                  }
+              }
+
+              private fun pick(list: List<MediaController>) {
+                  val chosen = list.firstOrNull { it.packageName == YT_MUSIC }
+                      ?: list.firstOrNull { it.playbackState?.state == PlaybackState.STATE_PLAYING }
+                      ?: list.firstOrNull()
+
+                  if (chosen?.sessionToken != current?.sessionToken) {
+                      current?.unregisterCallback(callback)
+                      current = chosen
+                      chosen?.registerCallback(callback, handler)
+                  }
+                  update()
+              }
+
+              private fun update() {
+                  val c = current
+                  val m = c?.metadata
+                  if (c == null || m == null) {
+                      _track.value = null
+                      return
+                  }
+                  _track.value = Track(
+                      title = m.getString(MediaMetadata.METADATA_KEY_TITLE).orEmpty(),
+                      artist = m.getString(MediaMetadata.METADATA_KEY_ARTIST)
+                          ?: m.getString(MediaMetadata.METADATA_KEY_ALBUM_ARTIST).orEmpty(),
+                      art = listOfNotNull(
+                          m.getBitmap(MediaMetadata.METADATA_KEY_ALBUM_ART),
+                          m.getBitmap(MediaMetadata.METADATA_KEY_ART),
+                          m.getBitmap(MediaMetadata.METADATA_KEY_DISPLAY_ICON),
+                      ).maxByOrNull { it.width * it.height },
+                      isPlaying = c.playbackState?.state == PlaybackState.STATE_PLAYING,
+                      packageName = c.packageName,
+                      durationMs = m.getLong(MediaMetadata.METADATA_KEY_DURATION),
+                      artUri = m.getString(MediaMetadata.METADATA_KEY_ALBUM_ART_URI)
+                          ?: m.getString(MediaMetadata.METADATA_KEY_ART_URI)
+                          ?: m.getString(MediaMetadata.METADATA_KEY_DISPLAY_ICON_URI),
+                  )
+              }
+
+              fun positionMs(): Long {
+                  val s = current?.playbackState ?: return 0L
+                  var p = s.position
+                  if (s.state == PlaybackState.STATE_PLAYING && s.lastPositionUpdateTime > 0) {
+                      p += ((SystemClock.elapsedRealtime() - s.lastPositionUpdateTime) * s.playbackSpeed).toLong()
+                  }
+                  return p
+              }
+
+              companion object {
+                  const val YT_MUSIC = "com.google.android.apps.youtube.music"
+
+                  fun hasPermission(ctx: Context): Boolean =
+                      NotificationManagerCompat.getEnabledListenerPackages(ctx).contains(ctx.packageName)
+              }
+          }
+          EOF_FILE
+          cat > app/src/main/java/com/example/nowplaying/Lyrics.kt <<'EOF_FILE'
+          package com.example.nowplaying
+
+          import org.json.JSONArray
+          import java.net.HttpURLConnection
+          import java.net.URL
+          import java.net.URLEncoder
+          import kotlin.math.abs
+
+          data class LyricLine(val timeMs: Long, val text: String, val pron: String? = null)
+
+          object Lyrics {
+
+              fun fetch(artist: String, title: String, durationMs: Long): List<LyricLine>? {
+                  search(artist, title, durationMs)?.let { return it }
+                  val clean = title.substringBefore(" | ").substringBefore("｜")
+                      .replace(Regex("""\s*[(\[【「].*?[)\]】」]"""), "").trim()
+                  if (clean.isNotEmpty() && clean != title) search(artist, clean, durationMs)?.let { return it }
+                  if (clean.isNotEmpty() && durationMs > 0) search(null, clean, durationMs, maxDiffMs = 10_000.0)?.let { return it }
+                  return null
+              }
+
+              private fun search(
+                  artist: String?,
+                  title: String,
+                  durationMs: Long,
+                  maxDiffMs: Double = Double.MAX_VALUE,
+              ): List<LyricLine>? {
+                  return try {
+                      var q = "track_name=" + URLEncoder.encode(title, "UTF-8")
+                      if (artist != null) q += "&artist_name=" + URLEncoder.encode(artist, "UTF-8")
+                      val conn = URL("https://lrclib.net/api/search?$q").openConnection() as HttpURLConnection
+                      conn.setRequestProperty("User-Agent", "NowPlaying Android app")
+                      conn.connectTimeout = 8000
+                      conn.readTimeout = 8000
+                      val body = conn.inputStream.bufferedReader().use { it.readText() }
+                      conn.disconnect()
+
+                      val arr = JSONArray(body)
+                      var best: String? = null
+                      var bestDiff = Double.MAX_VALUE
+                      for (i in 0 until arr.length()) {
+                          val o = arr.getJSONObject(i)
+                          val synced = o.optString("syncedLyrics", "")
+                          if (synced.isBlank() || synced == "null") continue
+                          val diff = if (durationMs > 0) abs(o.optDouble("duration", 0.0) * 1000 - durationMs) else 0.0
+                          if (diff < bestDiff && diff <= maxDiffMs) {
+                              bestDiff = diff
+                              best = synced
+                          }
+                      }
+                      best?.let { parse(it) }?.takeIf { it.isNotEmpty() }
+                  } catch (e: Exception) {
+                      null
+                  }
+              }
+
+              fun parse(lrc: String): List<LyricLine> {
+                  val tag = Regex("""\[(\d+):(\d+(?:\.\d+)?)]""")
+                  val out = mutableListOf<LyricLine>()
+                  for (raw in lrc.lines()) {
+                      val tags = tag.findAll(raw).toList()
+                      if (tags.isEmpty()) continue
+                      val text = raw.substring(tags.last().range.last + 1).trim()
+                      for (t in tags) {
+                          val ms = t.groupValues[1].toLong() * 60_000 +
+                              (t.groupValues[2].toDouble() * 1000).toLong()
+                          out += LyricLine(ms, text)
+                      }
+                  }
+                  return out.sortedBy { it.timeMs }
+              }
+          }
+          EOF_FILE
+          cat > app/src/main/java/com/example/nowplaying/Art.kt <<'EOF_FILE'
+          package com.example.nowplaying
+
+          import android.content.Context
+          import android.graphics.Bitmap
+          import android.graphics.BitmapFactory
+          import android.net.Uri
+          import androidx.core.graphics.ColorUtils
+          import androidx.palette.graphics.Palette
+          import java.net.HttpURLConnection
+          import java.net.URL
+
+          object Art {
+
+              private fun hiResUrl(url: String): String =
+                  if (url.contains("googleusercontent.com") || url.contains("ggpht.com"))
+                      url.replace(Regex("""=[wsh]\d+[^/]*$"""), "=w1200-h1200-l90-rj")
+                  else url
+
+              fun load(context: Context, uri: String?): Bitmap? {
+                  if (uri.isNullOrBlank()) return null
+                  return try {
+                      if (uri.startsWith("http")) {
+                          download(hiResUrl(uri)) ?: download(uri)
+                      } else {
+                          context.contentResolver.openInputStream(Uri.parse(uri))?.use { BitmapFactory.decodeStream(it) }
+                      }
+                  } catch (e: Exception) {
+                      null
+                  }
+              }
+
+              private fun download(url: String): Bitmap? = try {
+                  val c = URL(url).openConnection() as HttpURLConnection
+                  c.connectTimeout = 8000
+                  c.readTimeout = 8000
+                  if (c.responseCode != 200) null else c.inputStream.use { BitmapFactory.decodeStream(it) }
+              } catch (e: Exception) {
+                  null
+              }
+
+              fun accentColor(bmp: Bitmap): Int? {
+                  val p = Palette.from(bmp).maximumColorCount(16).generate()
+                  val sw = p.vibrantSwatch ?: p.darkVibrantSwatch ?: p.mutedSwatch ?: p.dominantSwatch ?: return null
+                  val hsl = sw.hsl.copyOf()
+                  hsl[2] = hsl[2].coerceIn(0.28f, 0.45f)
+                  return ColorUtils.HSLToColor(hsl)
+              }
+          }
+          EOF_FILE
+          cat > app/src/main/java/com/example/nowplaying/KanaHangul.java <<'EOF_FILE'
+          package com.example.nowplaying;
+
+          import java.util.ArrayList;
+          import java.util.HashMap;
+          import java.util.List;
+          import java.util.Map;
+
+          public final class KanaHangul {
+
+              private static final int A = 0, YA = 2, E = 5, O = 8, YO = 12, U = 13, YU = 17, EU = 18, I = 20;
+              private static final int FINAL_N = 4, FINAL_S = 19;
+
+              private static final Map<Character, int[]> BASE = new HashMap<>();
+
+              private static void put(String kana, int initial, int... vowels) {
+                  for (int i = 0; i < kana.length(); i++) BASE.put(kana.charAt(i), new int[]{initial, vowels[i]});
+              }
+
+              static {
+                  put("アイウエオ", 11, A, I, U, E, O);
+                  put("カキクケコ", 15, A, I, U, E, O);
+                  put("ガギグゲゴ", 0, A, I, U, E, O);
+                  put("サシスセソ", 9, A, I, EU, E, O);
+                  put("ザジズゼゾ", 12, A, I, EU, E, O);
+                  put("タチツテト", 16, A, I, EU, E, O);
+                  put("ダヂヅデド", 3, A, I, EU, E, O);
+                  put("ナニヌネノ", 2, A, I, U, E, O);
+                  put("ハヒフヘホ", 18, A, I, U, E, O);
+                  put("バビブベボ", 7, A, I, U, E, O);
+                  put("パピプペポ", 17, A, I, U, E, O);
+                  put("マミムメモ", 6, A, I, U, E, O);
+                  put("ヤユヨ", 11, YA, YU, YO);
+                  put("ラリルレロ", 5, A, I, U, E, O);
+                  put("ワヲ", 11, 9, O);
+                  put("ヴ", 7, U);
+                  BASE.put('チ', new int[]{14, I});
+                  BASE.put('ツ', new int[]{14, EU});
+                  BASE.put('ヂ', new int[]{12, I});
+                  BASE.put('ヅ', new int[]{12, EU});
+              }
+
+              private static final class Unit {
+                  int initial = -1, vowel, fin;   // initial < 0 이면 일반 문자
+                  String raw;
+                  boolean fromU;                  // 'ウ'에서 왔는지 (ウィ→위 처리용)
+                  boolean fromFu;                 // 'フ'에서 왔는지 (ファ→파 처리용)
+              }
+
+              public static String convert(String text) {
+                  List<Unit> out = new ArrayList<>();
+                  for (int i = 0; i < text.length(); i++) {
+                      char c = text.charAt(i);
+                      if (c >= 'ぁ' && c <= 'ゖ') c = (char) (c + 0x60); // 히라가나 → 가타카나
+                      Unit last = out.isEmpty() ? null : out.get(out.size() - 1);
+                      boolean lastIsSyllable = last != null && last.initial >= 0;
+
+                      int[] base = BASE.get(c);
+                      if (base != null) {
+                          Unit u = new Unit();
+                          u.initial = base[0];
+                          u.vowel = base[1];
+                          u.fromU = c == 'ウ';
+                          u.fromFu = c == 'フ';
+                          out.add(u);
+                      } else if ((c == 'ャ' || c == 'ュ' || c == 'ョ') && lastIsSyllable) {
+                          last.vowel = c == 'ャ' ? YA : c == 'ュ' ? YU : YO;   // キャ→캬
+                      } else if ("ァィゥェォ".indexOf(c) >= 0 && lastIsSyllable) {
+                          int v = "ァィゥェォ".indexOf(c);
+                          if (last.fromU) {
+                              last.vowel = new int[]{9, 16, U, 15, 14}[v];     // ウィ→위, ウォ→워
+                          } else {
+                              last.vowel = new int[]{A, I, U, E, O}[v];        // ティ→티
+                              if (last.fromFu) last.initial = 17;              // ファ→파, フィ→피
+                          }
+                      } else if (c == 'ッ') {
+                          if (lastIsSyllable && last.fin == 0) last.fin = FINAL_S;   // ッ → ㅅ 받침
+                      } else if (c == 'ン') {
+                          if (lastIsSyllable && last.fin == 0) last.fin = FINAL_N;   // ン → ㄴ 받침
+                          else addRaw(out, "ㄴ");
+                      } else if (c == 'ー') { if (lastIsSyllable || (last != null && "-".equals(last.raw))) addRaw(out, "-"); } else if (c == 'ゝ' || c == 'ヽ') {
+                      } else if (c == 'ァ' || c == 'ィ' || c == 'ゥ' || c == 'ェ' || c == 'ォ'
+                              || c == 'ャ' || c == 'ュ' || c == 'ョ') {
+                          int[] b = BASE.get((char) (c + 1));   // 앞 글자 없이 나온 작은 글자
+                          if (b != null) {
+                              Unit u = new Unit();
+                              u.initial = b[0];
+                              u.vowel = b[1];
+                              out.add(u);
+                          }
+                      } else if (c == '　') {
+                          addRaw(out, " ");
+                      } else {
+                          addRaw(out, String.valueOf(c));
+                      }
+                  }
+                  StringBuilder sb = new StringBuilder();
+                  for (Unit u : out) {
+                      if (u.initial < 0) sb.append(u.raw);
+                      else sb.append((char) (0xAC00 + (u.initial * 21 + u.vowel) * 28 + u.fin));
+                  }
+                  return sb.toString();
+              }
+
+              private static void addRaw(List<Unit> out, String s) {
+                  Unit u = new Unit();
+                  u.raw = s;
+                  out.add(u);
+              }
+
+              public static boolean hasKana(String s) {
+                  for (int i = 0; i < s.length(); i++) {
+                      char c = s.charAt(i);
+                      if (c >= 'ぁ' && c <= 'ヿ') return true;
+                  }
+                  return false;
+              }
+
+              public static boolean hasJapanese(String s) {
+                  for (int i = 0; i < s.length(); i++) {
+                      char c = s.charAt(i);
+                      if ((c >= 'ぁ' && c <= 'ヿ') || (c >= '一' && c <= '鿿') || c == '々') return true;
+                  }
+                  return false;
+              }
+          }
+          EOF_FILE
+          cat > app/src/main/java/com/example/nowplaying/Japanese.kt <<'EOF_FILE'
+          package com.example.nowplaying
+
+          import com.atilika.kuromoji.ipadic.Tokenizer
+
+          object Japanese {
+
+              private val tokenizer: Tokenizer by lazy { Tokenizer() }
+
+              fun pronounce(line: String): String {
+                  val tokens = tokenizer.tokenize(line)
+                  val sb = StringBuilder()
+                  for ((i, t) in tokens.withIndex()) {
+                      val surface = t.surface
+                      var reading = t.pronunciation
+                      if (reading.isNullOrEmpty() || reading == "*") reading = surface
+                      val pos = t.partOfSpeechLevel1
+                      if (pos == "助詞") {
+                          if (surface == "は") reading = "ワ"
+                          if (surface == "へ") reading = "エ"
+                      }
+                      sb.append(reading)
+                      val next = tokens.getOrNull(i + 1)
+                      if (next != null && pos == "助詞" &&
+                          next.partOfSpeechLevel1 !in setOf("助詞", "助動詞", "記号")
+                      ) sb.append(' ')
+                  }
+                  return KanaHangul.convert(sb.toString()).replace(Regex(" +"), " ").trim()
+              }
+
+              fun addPronunciation(lines: List<LyricLine>): List<LyricLine> {
+                  if (lines.none { KanaHangul.hasKana(it.text) }) return lines
+                  return lines.map { if (KanaHangul.hasJapanese(it.text)) it.copy(pron = pronounce(it.text)) else it }
+              }
+          }
+          EOF_FILE
+          cat > app/src/main/java/com/example/nowplaying/MainActivity.kt <<'EOF_FILE'
+          package com.example.nowplaying
+
+          import android.content.Intent
+          import android.graphics.Bitmap
+          import android.os.Build
+          import android.os.Bundle
+          import android.provider.Settings
+          import android.view.WindowManager
+          import androidx.activity.ComponentActivity
+          import androidx.activity.compose.setContent
+          import androidx.compose.animation.animateColorAsState
+          import androidx.compose.animation.core.Animatable
+          import androidx.compose.animation.core.LinearEasing
+          import androidx.compose.animation.core.tween
+          import androidx.compose.foundation.Image
+          import androidx.compose.foundation.background
+          import androidx.compose.foundation.layout.*
+          import androidx.compose.foundation.shape.CircleShape
+          import androidx.compose.material3.Button
+          import androidx.compose.material3.Text
+          import androidx.compose.runtime.*
+          import androidx.compose.ui.Alignment
+          import androidx.compose.ui.Modifier
+          import androidx.compose.ui.draw.blur
+          import androidx.compose.ui.draw.clip
+          import androidx.compose.ui.draw.rotate
+          import androidx.compose.ui.graphics.Color
+          import androidx.compose.ui.graphics.FilterQuality
+          import androidx.compose.ui.graphics.asImageBitmap
+          import androidx.compose.ui.layout.ContentScale
+          import androidx.compose.ui.platform.LocalContext
+          import androidx.compose.ui.text.font.FontWeight
+          import androidx.compose.ui.text.style.TextAlign
+          import androidx.compose.ui.text.style.TextOverflow
+          import androidx.compose.ui.unit.dp
+          import androidx.compose.ui.unit.sp
+          import androidx.core.view.WindowCompat
+          import androidx.core.view.WindowInsetsCompat
+          import androidx.core.view.WindowInsetsControllerCompat
+          import kotlinx.coroutines.Dispatchers
+          import kotlinx.coroutines.delay
+          import kotlinx.coroutines.withContext
+          import kotlin.math.abs
+
+          private val DEFAULT_BAND = Color(0xFF8A3A33)
+
+          class MainActivity : ComponentActivity() {
+
+              private lateinit var tracker: NowPlayingTracker
+              private var hasPerm by mutableStateOf(false)
+
+              override fun onCreate(savedInstanceState: Bundle?) {
+                  super.onCreate(savedInstanceState)
+                  WindowCompat.setDecorFitsSystemWindows(window, false)
+                  if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                      window.attributes.layoutInDisplayCutoutMode =
+                          WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
+                  }
+                  window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                  hideSystemBars()
+
+                  tracker = NowPlayingTracker(this)
+                  setContent {
+                      val track by tracker.track.collectAsState()
+                      if (hasPerm) {
+                          NowPlayingScreen(track, tracker::positionMs)
+                      } else {
+                          PermissionScreen {
+                              startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
+                          }
+                      }
+                  }
+              }
+
+              override fun onStart() {
+                  super.onStart()
+                  hasPerm = NowPlayingTracker.hasPermission(this)
+                  if (hasPerm) tracker.start()
+              }
+
+              override fun onStop() {
+                  tracker.stop()
+                  super.onStop()
+              }
+
+              override fun onWindowFocusChanged(hasFocus: Boolean) {
+                  super.onWindowFocusChanged(hasFocus)
+                  if (hasFocus) hideSystemBars()
+              }
+
+              private fun hideSystemBars() {
+                  WindowCompat.getInsetsController(window, window.decorView).apply {
+                      hide(WindowInsetsCompat.Type.systemBars())
+                      systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+                  }
+              }
+          }
+
+          @Composable
+          fun PermissionScreen(onClick: () -> Unit) {
+              Column(
+                  Modifier.fillMaxSize().background(Color(0xFF1A1414)),
+                  verticalArrangement = Arrangement.Center,
+                  horizontalAlignment = Alignment.CenterHorizontally,
+              ) {
+                  Text("재생 중인 곡을 보려면 알림 접근 권한이 필요해요", color = Color.White)
+                  Spacer(Modifier.height(16.dp))
+                  Button(onClick = onClick) { Text("권한 허용하러 가기") }
+              }
+          }
+
+          @Composable
+          fun NowPlayingScreen(track: Track?, positionMs: () -> Long) {
+              val context = LocalContext.current
+
+              val hiRes by produceState<Bitmap?>(null, track?.artUri) {
+                  value = null
+                  value = withContext(Dispatchers.IO) { Art.load(context, track?.artUri) }
+              }
+              val bitmap = hiRes ?: track?.art
+              val art = remember(bitmap) { bitmap?.asImageBitmap() }
+
+              val accent by produceState(DEFAULT_BAND, bitmap) {
+                  val c = bitmap?.let { b -> withContext(Dispatchers.Default) { Art.accentColor(b) } }
+                  value = c?.let { Color(it) } ?: DEFAULT_BAND
+              }
+              val band by animateColorAsState(accent, tween(800), label = "band")
+
+              Box(Modifier.fillMaxSize().background(Color(0xFF1A1414))) {
+                  if (art != null) {
+                      Image(
+                          art, null,
+                          Modifier.fillMaxSize().blur(30.dp),
+                          contentScale = ContentScale.Crop,
+                      )
+                  }
+                  Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.55f)))
+
+                  if (track == null) {
+                      Text("재생 중인 곡이 없어요", Modifier.align(Alignment.Center), color = Color.White)
+                      return@Box
+                  }
+
+                  val rotation = remember { Animatable(0f) }
+                  LaunchedEffect(track.isPlaying) {
+                      while (track.isPlaying) {
+                          rotation.snapTo(rotation.value % 360f)
+                          rotation.animateTo(rotation.value + 360f, tween(20_000, easing = LinearEasing))
+                      }
+                  }
+
+                  Column(
+                      Modifier.fillMaxSize().padding(24.dp),
+                      horizontalAlignment = Alignment.CenterHorizontally,
+                  ) {
+                      Text(
+                          "${track.artist} - ${track.title}",
+                          color = Color.White, fontSize = 30.sp, fontWeight = FontWeight.Bold,
+                          maxLines = 1, overflow = TextOverflow.Ellipsis,
+                      )
+                      Spacer(Modifier.height(16.dp))
+
+                      Row(Modifier.fillMaxWidth().weight(1f), verticalAlignment = Alignment.CenterVertically) {
+                          Box(Modifier.weight(1f).fillMaxHeight(), contentAlignment = Alignment.Center) {
+                              if (art != null) {
+                                  Image(
+                                      art, null,
+                                      Modifier.fillMaxHeight(0.85f).aspectRatio(1f)
+                                          .rotate(rotation.value).clip(CircleShape),
+                                      contentScale = ContentScale.Crop,
+                                      filterQuality = FilterQuality.High,
+                                  )
+                              }
+                          }
+
+                          Box(Modifier.weight(1.3f).fillMaxHeight()) {
+                              LyricsPanel(track, positionMs, band)
+                          }
+                      }
+                  }
+              }
+          }
+
+          @Composable
+          fun LyricsPanel(track: Track, positionMs: () -> Long, bandColor: Color) {
+              var lyrics by remember(track.artist, track.title) { mutableStateOf<List<LyricLine>?>(null) }
+              var loading by remember(track.artist, track.title) { mutableStateOf(true) }
+              LaunchedEffect(track.artist, track.title) {
+                  lyrics = withContext(Dispatchers.IO) {
+                      val found = Lyrics.fetch(track.artist, track.title, track.durationMs)
+                      if (found == null) null
+                      else try { Japanese.addPronunciation(found) } catch (e: Throwable) { found }
+                  }
+                  loading = false
+              }
+
+              var pos by remember { mutableLongStateOf(0L) }
+              LaunchedEffect(track.artist, track.title) {
+                  while (true) {
+                      pos = positionMs()
+                      delay(200)
+                  }
+              }
+
+              val lines = lyrics
+              val hasPron = lines?.any { it.pron != null } == true
+              val lineHeight = if (hasPron) 100.dp else 72.dp
+
+              BoxWithConstraints(
+                  Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.25f)),
+                  contentAlignment = Alignment.Center,
+              ) {
+                  var visible = (maxHeight / lineHeight).toInt().coerceIn(1, 5)
+                  if (visible % 2 == 0) visible -= 1
+                  val half = visible / 2
+
+                  Box(
+                      Modifier.fillMaxWidth().height(lineHeight)
+                          .background(bandColor.copy(alpha = 0.8f))
+                  )
+
+                  if (lines == null) {
+                      Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                          Text(
+                              track.artist, color = Color.White, fontSize = 28.sp, fontWeight = FontWeight.SemiBold,
+                              textAlign = TextAlign.Center, modifier = Modifier.padding(horizontal = 16.dp),
+                          )
+                          Box(Modifier.height(lineHeight), contentAlignment = Alignment.Center) {
+                              if (loading) Text("가사 찾는 중…", color = Color.White.copy(alpha = 0.6f), fontSize = 18.sp)
+                          }
+                          Text(
+                              track.title, color = Color.White, fontSize = 28.sp, fontWeight = FontWeight.SemiBold,
+                              textAlign = TextAlign.Center, modifier = Modifier.padding(horizontal = 16.dp),
+                          )
+                      }
+                  } else {
+                      val current = lines.indexOfLast { it.timeMs <= pos }
+                      Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                          for (offset in -half..half) {
+                              val line = lines.getOrNull(current + offset)
+                              val alpha = when (abs(offset)) {
+                                  0 -> 1f
+                                  1 -> 0.8f
+                                  else -> 0.4f
+                              }
+                              val isCurrent = offset == 0
+                              Column(
+                                  Modifier.fillMaxWidth().height(lineHeight).padding(horizontal = 16.dp),
+                                  verticalArrangement = Arrangement.Center,
+                                  horizontalAlignment = Alignment.CenterHorizontally,
+                              ) {
+                                  Text(
+                                      line?.text.orEmpty(),
+                                      color = Color.White.copy(alpha = alpha),
+                                      fontSize = if (isCurrent) 32.sp else 26.sp,
+                                      fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Normal,
+                                      textAlign = TextAlign.Center,
+                                      maxLines = 1,
+                                      overflow = TextOverflow.Ellipsis,
+                                  )
+                                  val pron = line?.pron
+                                  if (!pron.isNullOrEmpty()) {
+                                      Text(
+                                          pron,
+                                          color = Color.White.copy(alpha = alpha * 0.85f),
+                                          fontSize = if (isCurrent) 20.sp else 17.sp,
+                                          textAlign = TextAlign.Center,
+                                          maxLines = 1,
+                                          overflow = TextOverflow.Ellipsis,
+                                      )
+                                  }
+                              }
+                          }
+                      }
+                  }
+              }
+          }
+          EOF_FILE
+
+      - name: Build
+        run: gradle assembleDebug --no-daemon
+
+      - name: Publish to Releases
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          cp app/build/outputs/apk/debug/app-debug.apk NowPlaying.apk
+          gh release delete latest -y --cleanup-tag --repo ${{ github.repository }} || true
+          gh release create latest NowPlaying.apk --repo ${{ github.repository }} --title "최신 빌드" --notes "자동 빌드"
