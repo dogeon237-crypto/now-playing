@@ -12,6 +12,8 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
+
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -23,7 +25,8 @@ jobs:
 
       - name: Create project
         run: |
-          mkdir -p app/src/main/java/com/example/nowplaying
+          mkdir -p app/src/main/java/com/example/nowplaying app/src/main/assets
+          if [ -f fixes.txt ]; then cp fixes.txt app/src/main/assets/fixes.txt; fi
           echo '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' | base64 -d > app/debug.keystore
           cat > settings.gradle.kts <<'EOF_FILE'
           pluginManagement {
@@ -71,8 +74,8 @@ jobs:
                   applicationId = "com.example.nowplaying"
                   minSdk = 26
                   targetSdk = 35
-                  versionCode = 5
-                  versionName = "1.4"
+                  versionCode = 6
+                  versionName = "1.5"
               }
 
               signingConfigs {
@@ -530,16 +533,68 @@ jobs:
           cat > app/src/main/java/com/example/nowplaying/Japanese.kt <<'EOF_FILE'
           package com.example.nowplaying
 
+          import android.content.Context
+          import com.atilika.kuromoji.ipadic.Token
           import com.atilika.kuromoji.ipadic.Tokenizer
 
           object Japanese {
 
               private val tokenizer: Tokenizer by lazy { Tokenizer() }
 
+              private val DEFAULT_FIXES = listOf(
+                  "今" to "イマ",
+                  "二人" to "フタリ",
+                  "一人" to "ヒトリ",
+              )
+
+              @Volatile
+              private var fixes: List<Pair<String, String>> = DEFAULT_FIXES.sortedByDescending { it.first.length }
+
+              fun loadFixes(context: Context) {
+                  try {
+                      val user = context.assets.open("fixes.txt").bufferedReader().readLines()
+                          .map { it.substringBefore("#").trim() }
+                          .filter { it.contains("=") }
+                          .map { it.substringBefore("=").trim() to it.substringAfter("=").trim() }
+                          .filter { it.first.isNotEmpty() && it.second.isNotEmpty() }
+                      fixes = (user + DEFAULT_FIXES).distinctBy { it.first }.sortedByDescending { it.first.length }
+                  } catch (e: Exception) {
+                  }
+              }
+
+              fun warmUp() {
+                  try { tokenizer.tokenize("今") } catch (e: Throwable) {}
+              }
+
+              private fun matchLen(tokens: List<Token>, start: Int, key: String): Int {
+                  val acc = StringBuilder()
+                  var j = start
+                  while (j < tokens.size && acc.length < key.length) {
+                      acc.append(tokens[j].surface)
+                      j++
+                      if (acc.toString() == key) return j - start
+                  }
+                  return 0
+              }
+
               fun pronounce(line: String): String {
                   val tokens = tokenizer.tokenize(line)
                   val sb = StringBuilder()
-                  for ((i, t) in tokens.withIndex()) {
+                  var i = 0
+                  while (i < tokens.size) {
+                      var fixed = false
+                      for ((key, r) in fixes) {
+                          val n = matchLen(tokens, i, key)
+                          if (n > 0) {
+                              sb.append(r)
+                              i += n
+                              fixed = true
+                              break
+                          }
+                      }
+                      if (fixed) continue
+
+                      val t = tokens[i]
                       val surface = t.surface
                       var reading = t.pronunciation
                       if (reading.isNullOrEmpty() || reading == "*") reading = surface
@@ -553,6 +608,7 @@ jobs:
                       if (next != null && pos == "助詞" &&
                           next.partOfSpeechLevel1 !in setOf("助詞", "助動詞", "記号")
                       ) sb.append(' ')
+                      i++
                   }
                   return KanaHangul.convert(sb.toString()).replace(Regex(" +"), " ").trim()
               }
@@ -624,6 +680,9 @@ jobs:
                   }
                   window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
                   hideSystemBars()
+
+                  Japanese.loadFixes(applicationContext)
+                  Thread { Japanese.warmUp() }.start()
 
                   tracker = NowPlayingTracker(this)
                   setContent {
@@ -763,8 +822,8 @@ jobs:
               var pos by remember { mutableLongStateOf(0L) }
               LaunchedEffect(track.artist, track.title) {
                   while (true) {
-                      pos = positionMs()
-                      delay(200)
+                      pos = positionMs() + 700
+                      delay(100)
                   }
               }
 
