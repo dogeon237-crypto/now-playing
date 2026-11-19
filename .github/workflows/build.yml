@@ -1,0 +1,411 @@
+name: Build APK
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.11.1"
+
+      # 앱 코드 전체를 여기서 만들어요
+      - name: Create project
+        run: |
+          mkdir -p app/src/main/java/com/example/nowplaying
+          keytool -genkeypair -keystore app/debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
+          cat > settings.gradle.kts <<'EOF_FILE'
+          pluginManagement {
+              repositories {
+                  google()
+                  mavenCentral()
+                  gradlePluginPortal()
+              }
+          }
+          dependencyResolutionManagement {
+              repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+              repositories {
+                  google()
+                  mavenCentral()
+              }
+          }
+          rootProject.name = "NowPlaying"
+          include(":app")
+          EOF_FILE
+          cat > build.gradle.kts <<'EOF_FILE'
+          plugins {
+              id("com.android.application") version "8.7.3" apply false
+              id("org.jetbrains.kotlin.android") version "2.1.0" apply false
+              id("org.jetbrains.kotlin.plugin.compose") version "2.1.0" apply false
+          }
+          EOF_FILE
+          cat > gradle.properties <<'EOF_FILE'
+          org.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8
+          android.useAndroidX=true
+          kotlin.code.style=official
+          android.nonTransitiveRClass=true
+          EOF_FILE
+          cat > app/build.gradle.kts <<'EOF_FILE'
+          plugins {
+              id("com.android.application")
+              id("org.jetbrains.kotlin.android")
+              id("org.jetbrains.kotlin.plugin.compose")
+          }
+
+          android {
+              namespace = "com.example.nowplaying"
+              compileSdk = 35
+
+              defaultConfig {
+                  applicationId = "com.example.nowplaying"
+                  minSdk = 26
+                  targetSdk = 35
+                  versionCode = 1
+                  versionName = "1.0"
+              }
+
+              signingConfigs {
+                  getByName("debug") {
+                      storeFile = file("debug.keystore")
+                      storePassword = "android"
+                      keyAlias = "androiddebugkey"
+                      keyPassword = "android"
+                  }
+              }
+
+              compileOptions {
+                  sourceCompatibility = JavaVersion.VERSION_17
+                  targetCompatibility = JavaVersion.VERSION_17
+              }
+              kotlinOptions {
+                  jvmTarget = "17"
+              }
+              buildFeatures {
+                  compose = true
+              }
+          }
+
+          dependencies {
+              val composeBom = platform("androidx.compose:compose-bom:2024.12.01")
+              implementation(composeBom)
+              implementation("androidx.core:core-ktx:1.15.0")
+              implementation("androidx.activity:activity-compose:1.9.3")
+              implementation("androidx.compose.ui:ui")
+              implementation("androidx.compose.foundation:foundation")
+              implementation("androidx.compose.material3:material3")
+          }
+          EOF_FILE
+          cat > app/src/main/AndroidManifest.xml <<'EOF_FILE'
+          <?xml version="1.0" encoding="utf-8"?>
+          <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+              <application
+                  android:allowBackup="true"
+                  android:label="Now Playing"
+                  android:theme="@android:style/Theme.Material.NoActionBar">
+
+                  <activity
+                      android:name=".MainActivity"
+                      android:exported="true"
+                      android:screenOrientation="landscape">
+                      <intent-filter>
+                          <action android:name="android.intent.action.MAIN" />
+                          <category android:name="android.intent.category.LAUNCHER" />
+                      </intent-filter>
+                  </activity>
+
+                  <service
+                      android:name=".MediaListener"
+                      android:exported="true"
+                      android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
+                      <intent-filter>
+                          <action android:name="android.service.notification.NotificationListenerService" />
+                      </intent-filter>
+                  </service>
+
+              </application>
+          </manifest>
+          EOF_FILE
+          cat > app/src/main/java/com/example/nowplaying/MediaListener.kt <<'EOF_FILE'
+          package com.example.nowplaying
+
+          import android.service.notification.NotificationListenerService
+
+          class MediaListener : NotificationListenerService()
+          EOF_FILE
+          cat > app/src/main/java/com/example/nowplaying/NowPlayingTracker.kt <<'EOF_FILE'
+          package com.example.nowplaying
+
+          import android.content.ComponentName
+          import android.content.Context
+          import android.graphics.Bitmap
+          import android.media.MediaMetadata
+          import android.media.session.MediaController
+          import android.media.session.MediaSessionManager
+          import android.media.session.PlaybackState
+          import android.os.Handler
+          import android.os.Looper
+          import androidx.core.app.NotificationManagerCompat
+          import kotlinx.coroutines.flow.MutableStateFlow
+          import kotlinx.coroutines.flow.StateFlow
+
+          data class Track(
+              val title: String,
+              val artist: String,
+              val art: Bitmap?,
+              val isPlaying: Boolean,
+              val packageName: String,
+          )
+
+          class NowPlayingTracker(private val context: Context) {
+
+              private val msm = context.getSystemService(MediaSessionManager::class.java)
+              private val component = ComponentName(context, MediaListener::class.java)
+              private val handler = Handler(Looper.getMainLooper())
+
+              private val _track = MutableStateFlow<Track?>(null)
+              val track: StateFlow<Track?> = _track
+
+              private var current: MediaController? = null
+
+              private val callback = object : MediaController.Callback() {
+                  override fun onMetadataChanged(metadata: MediaMetadata?) = update()
+                  override fun onPlaybackStateChanged(state: PlaybackState?) = update()
+                  override fun onSessionDestroyed() = refresh()
+              }
+
+              private val sessionsListener =
+                  MediaSessionManager.OnActiveSessionsChangedListener { list -> pick(list.orEmpty()) }
+
+              fun start() {
+                  if (!hasPermission(context)) return
+                  try {
+                      msm.addOnActiveSessionsChangedListener(sessionsListener, component, handler)
+                      refresh()
+                  } catch (e: SecurityException) {
+                  }
+              }
+
+              fun stop() {
+                  msm.removeOnActiveSessionsChangedListener(sessionsListener)
+                  current?.unregisterCallback(callback)
+                  current = null
+              }
+
+              private fun refresh() {
+                  try {
+                      pick(msm.getActiveSessions(component))
+                  } catch (e: SecurityException) {
+                      _track.value = null
+                  }
+              }
+
+              private fun pick(list: List<MediaController>) {
+                  val chosen = list.firstOrNull { it.packageName == YT_MUSIC }
+                      ?: list.firstOrNull { it.playbackState?.state == PlaybackState.STATE_PLAYING }
+                      ?: list.firstOrNull()
+
+                  if (chosen?.sessionToken != current?.sessionToken) {
+                      current?.unregisterCallback(callback)
+                      current = chosen
+                      chosen?.registerCallback(callback, handler)
+                  }
+                  update()
+              }
+
+              private fun update() {
+                  val c = current
+                  val m = c?.metadata
+                  if (c == null || m == null) {
+                      _track.value = null
+                      return
+                  }
+                  _track.value = Track(
+                      title = m.getString(MediaMetadata.METADATA_KEY_TITLE).orEmpty(),
+                      artist = m.getString(MediaMetadata.METADATA_KEY_ARTIST)
+                          ?: m.getString(MediaMetadata.METADATA_KEY_ALBUM_ARTIST).orEmpty(),
+                      art = m.getBitmap(MediaMetadata.METADATA_KEY_ALBUM_ART)
+                          ?: m.getBitmap(MediaMetadata.METADATA_KEY_ART)
+                          ?: m.getBitmap(MediaMetadata.METADATA_KEY_DISPLAY_ICON),
+                      isPlaying = c.playbackState?.state == PlaybackState.STATE_PLAYING,
+                      packageName = c.packageName,
+                  )
+              }
+
+              companion object {
+                  const val YT_MUSIC = "com.google.android.apps.youtube.music"
+
+                  fun hasPermission(ctx: Context): Boolean =
+                      NotificationManagerCompat.getEnabledListenerPackages(ctx).contains(ctx.packageName)
+              }
+          }
+          EOF_FILE
+          cat > app/src/main/java/com/example/nowplaying/MainActivity.kt <<'EOF_FILE'
+          package com.example.nowplaying
+
+          import android.content.Intent
+          import android.os.Bundle
+          import android.provider.Settings
+          import androidx.activity.ComponentActivity
+          import androidx.activity.compose.setContent
+          import androidx.compose.animation.core.Animatable
+          import androidx.compose.animation.core.LinearEasing
+          import androidx.compose.animation.core.tween
+          import androidx.compose.foundation.Image
+          import androidx.compose.foundation.background
+          import androidx.compose.foundation.layout.*
+          import androidx.compose.foundation.shape.CircleShape
+          import androidx.compose.material3.Button
+          import androidx.compose.material3.Text
+          import androidx.compose.runtime.*
+          import androidx.compose.ui.Alignment
+          import androidx.compose.ui.Modifier
+          import androidx.compose.ui.draw.blur
+          import androidx.compose.ui.draw.clip
+          import androidx.compose.ui.draw.rotate
+          import androidx.compose.ui.graphics.Color
+          import androidx.compose.ui.graphics.asImageBitmap
+          import androidx.compose.ui.layout.ContentScale
+          import androidx.compose.ui.text.font.FontWeight
+          import androidx.compose.ui.text.style.TextOverflow
+          import androidx.compose.ui.unit.dp
+          import androidx.compose.ui.unit.sp
+
+          class MainActivity : ComponentActivity() {
+
+              private lateinit var tracker: NowPlayingTracker
+              private var hasPerm by mutableStateOf(false)
+
+              override fun onCreate(savedInstanceState: Bundle?) {
+                  super.onCreate(savedInstanceState)
+                  tracker = NowPlayingTracker(this)
+                  setContent {
+                      val track by tracker.track.collectAsState()
+                      if (hasPerm) {
+                          NowPlayingScreen(track)
+                      } else {
+                          PermissionScreen {
+                              startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
+                          }
+                      }
+                  }
+              }
+
+              override fun onStart() {
+                  super.onStart()
+                  hasPerm = NowPlayingTracker.hasPermission(this)
+                  if (hasPerm) tracker.start()
+              }
+
+              override fun onStop() {
+                  tracker.stop()
+                  super.onStop()
+              }
+          }
+
+          @Composable
+          fun PermissionScreen(onClick: () -> Unit) {
+              Column(
+                  Modifier.fillMaxSize().background(Color(0xFF1A1414)),
+                  verticalArrangement = Arrangement.Center,
+                  horizontalAlignment = Alignment.CenterHorizontally,
+              ) {
+                  Text("재생 중인 곡을 보려면 알림 접근 권한이 필요해요", color = Color.White)
+                  Spacer(Modifier.height(16.dp))
+                  Button(onClick = onClick) { Text("권한 허용하러 가기") }
+              }
+          }
+
+          @Composable
+          fun NowPlayingScreen(track: Track?) {
+              Box(Modifier.fillMaxSize().background(Color(0xFF1A1414))) {
+                  val art = remember(track?.art) { track?.art?.asImageBitmap() }
+
+                  if (art != null) {
+                      Image(
+                          art, null,
+                          Modifier.fillMaxSize().blur(30.dp),
+                          contentScale = ContentScale.Crop,
+                      )
+                  }
+                  Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.55f)))
+
+                  if (track == null) {
+                      Text("재생 중인 곡이 없어요", Modifier.align(Alignment.Center), color = Color.White)
+                      return@Box
+                  }
+
+                  val rotation = remember { Animatable(0f) }
+                  LaunchedEffect(track.isPlaying) {
+                      while (track.isPlaying) {
+                          rotation.snapTo(rotation.value % 360f)
+                          rotation.animateTo(rotation.value + 360f, tween(20_000, easing = LinearEasing))
+                      }
+                  }
+
+                  Column(
+                      Modifier.fillMaxSize().padding(24.dp),
+                      horizontalAlignment = Alignment.CenterHorizontally,
+                  ) {
+                      Text(
+                          "${track.artist} - ${track.title}",
+                          color = Color.White, fontSize = 30.sp, fontWeight = FontWeight.Bold,
+                          maxLines = 1, overflow = TextOverflow.Ellipsis,
+                      )
+                      Spacer(Modifier.height(16.dp))
+
+                      Row(Modifier.fillMaxWidth().weight(1f), verticalAlignment = Alignment.CenterVertically) {
+                          Box(Modifier.weight(1f).fillMaxHeight(), contentAlignment = Alignment.Center) {
+                              if (art != null) {
+                                  Image(
+                                      art, null,
+                                      Modifier.fillMaxHeight(0.85f).aspectRatio(1f)
+                                          .rotate(rotation.value).clip(CircleShape),
+                                      contentScale = ContentScale.Crop,
+                                  )
+                              }
+                          }
+
+                          Box(
+                              Modifier.weight(1.3f).fillMaxHeight()
+                                  .background(Color.Black.copy(alpha = 0.25f)),
+                              contentAlignment = Alignment.Center,
+                          ) {
+                              Box(
+                                  Modifier.fillMaxWidth().height(56.dp)
+                                      .background(Color(0xFF8A3A33).copy(alpha = 0.7f))
+                              )
+                              Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                  Text(track.artist, color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.SemiBold)
+                                  Spacer(Modifier.height(56.dp))
+                                  Text(track.title, color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.SemiBold)
+                              }
+                          }
+                      }
+                  }
+              }
+          }
+          EOF_FILE
+
+      - name: Build
+        run: gradle assembleDebug --no-daemon
+
+      - name: Publish to Releases
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          cp app/build/outputs/apk/debug/app-debug.apk NowPlaying.apk
+          gh release delete latest -y --cleanup-tag --repo ${{ github.repository }} || true
+          gh release create latest NowPlaying.apk --repo ${{ github.repository }} --title "최신 빌드" --notes "자동 빌드"
