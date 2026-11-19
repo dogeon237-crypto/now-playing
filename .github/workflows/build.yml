@@ -74,8 +74,8 @@ jobs:
                   applicationId = "com.example.nowplaying"
                   minSdk = 26
                   targetSdk = 35
-                  versionCode = 7
-                  versionName = "1.6"
+                  versionCode = 8
+                  versionName = "1.7"
               }
 
               signingConfigs {
@@ -308,7 +308,7 @@ jobs:
               )
 
               private class Query(
-                  val base: String,          // 꼬리를 뗀 제목 (비교용으로 정규화)
+                  val bases: List<String>,   // 꼬리를 뗀 제목들 (비교용으로 정규화, 괄호 안 원제 포함)
                   val tags: Set<String>,     // 버전 표시 (movie, tv, live ...)
                   val artist: String,
                   val origArtist: String?,   // 커버곡의 원곡 가수
@@ -366,7 +366,7 @@ jobs:
 
               private fun originalArtist(title: String, artist: String): String? {
                   val parts = Regex("""[(（]([^)）]{1,40})[)）]""").findAll(title).map { it.groupValues[1].trim() }.toMutableList()
-                  Regex("""\s/\s([^|【\[(]+)""").find(title)?.let { parts += it.groupValues[1].trim() }
+                  Regex("""\s/\s([^|【\[(\]）)]+)""").find(title)?.let { parts += it.groupValues[1].trim() }
                   return parts.firstOrNull { p ->
                       val l = p.lowercase()
                       COVER_WORDS.none { l.contains(it) } && tagsOf(p).isEmpty() &&
@@ -374,15 +374,31 @@ jobs:
                   }
               }
 
+              private fun altTitles(title: String, artist: String): List<Pair<String, String?>> =
+                  Regex("""[\[(【（「『]([^\]\)】）」』]{1,60})[\]\)】）」』]""").findAll(title).mapNotNull { m ->
+                      val inner = m.groupValues[1].trim()
+                      val parts = inner.split(Regex("""\s*[/／]\s*"""))
+                      val t = parts[0].trim()
+                      val a = parts.getOrNull(1)?.trim()?.ifEmpty { null }
+                      val l = t.lowercase()
+                      val looksLikeTitle = a != null || t.any { it.code in 0x3040..0x30FF || it.code in 0x4E00..0x9FFF }
+                      if (t.isEmpty() || !looksLikeTitle || COVER_WORDS.any { l.contains(it) } || tagsOf(t).isNotEmpty() ||
+                          artistMatch(t, artist) || l.contains("ver") || l.contains("feat")
+                      ) null else t to a
+                  }.distinctBy { it.first }.take(2).toList()
+
               private fun score(c: Candidate, q: Query): Double? {
                   val cBaseRaw = cleanTitle(c.title)
                   val cBase = norm(cBaseRaw)
-                  if (cBase.isEmpty() || q.base.isEmpty()) return null
-                  val titleS = when {
-                      cBase == q.base -> 3.0
-                      cBase.contains(q.base) || q.base.contains(cBase) -> 1.5
-                      else -> return null
+                  if (cBase.isEmpty() || q.bases.isEmpty()) return null
+                  val titleS = q.bases.maxOf { b ->
+                      when {
+                          cBase == b -> 3.0
+                          cBase.contains(b) || b.contains(cBase) -> 1.5
+                          else -> 0.0
+                      }
                   }
+                  if (titleS == 0.0) return null
                   val cTags = versionTags(c.title, cBaseRaw)
                   val verS = when {
                       cTags == q.tags -> 2.0
@@ -407,18 +423,30 @@ jobs:
                   val base = cleanTitle(title)
                   val lower = (title + " " + artist).lowercase()
                   val isCover = COVER_WORDS.any { lower.contains(it) }
-                  val orig = if (isCover) originalArtist(title, artist) else null
-                  val q = Query(norm(base), versionTags(title, base), artist, orig, isCover, durationMs)
+                  val alts = altTitles(title, artist)
+                  val orig = if (isCover) (alts.firstNotNullOfOrNull { it.second } ?: originalArtist(title, artist)) else null
+                  val bases = (listOf(base) + alts.map { it.first }).map { norm(it) }.filter { it.isNotEmpty() }.distinct()
+                  val q = Query(bases, versionTags(title, base), artist, orig, isCover, durationMs)
                   val who = if (isCover) (orig ?: "") else artist
                   val keyword = "$base $who".trim()
 
-                  val results = listOf(
+                  val jobs = mutableListOf(
                       async(Dispatchers.IO) { safe { lrclib(base, who.ifEmpty { null }) } },
                       async(Dispatchers.IO) { safe { lrclib(base, null) } },
                       async(Dispatchers.IO) { safe { netease(keyword) } },
                       async(Dispatchers.IO) { safe { qq(keyword) } },
                       async(Dispatchers.IO) { safe { kugou(keyword) } },
-                  ).awaitAll().flatten()
+                  )
+                  for ((altT, altA) in alts) {
+                      val altWho = altA ?: who
+                      val altKey = "$altT $altWho".trim()
+                      jobs += async(Dispatchers.IO) { safe { lrclib(altT, altWho.ifEmpty { null }) } }
+                      jobs += async(Dispatchers.IO) { safe { lrclib(altT, null) } }
+                      jobs += async(Dispatchers.IO) { safe { netease(altKey) } }
+                      jobs += async(Dispatchers.IO) { safe { qq(altKey) } }
+                      jobs += async(Dispatchers.IO) { safe { kugou(altKey) } }
+                  }
+                  val results = jobs.awaitAll().flatten()
 
                   val ranked = results.mapNotNull { c -> score(c, q)?.let { c to it } }.sortedByDescending { it.second }
                   for ((c, _) in ranked.take(5)) {
